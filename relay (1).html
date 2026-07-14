@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — Workplace AI Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12181F;
+    --surface:#1A222C;
+    --surface-2:#232C38;
+    --line:#2E3947;
+    --paper:#EDEAE1;
+    --paper-dim:#C9C5B8;
+    --brass:#C98A3B;
+    --brass-dim:#8a6231;
+    --teal:#4FB3A0;
+    --text:#EDEAE2;
+    --text-dim:#8FA0AF;
+    --danger:#D9634F;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--brass); color:var(--ink);}
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  button, input, select, textarea{font-family:inherit;}
+  button{cursor:pointer;}
+  a{color:var(--brass);}
+
+  .app{
+    display:grid;
+    grid-template-columns:212px 1fr 272px;
+    grid-template-rows:60px 1fr;
+    height:100vh;
+    grid-template-areas:
+      "top top top"
+      "rail main log";
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    grid-area:top;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--surface), var(--ink));
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand .mark{
+    width:28px; height:28px; border-radius:6px;
+    background:var(--brass);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--ink); font-size:14px;
+    box-shadow:0 0 0 3px rgba(201,138,59,0.15);
+  }
+  .brand .name{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700; font-size:17px; letter-spacing:0.02em;
+  }
+  .brand .tag{
+    font-size:11px; color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace;
+    padding-left:10px; margin-left:10px; border-left:1px solid var(--line);
+  }
+  .topbar .status{
+    display:flex; align-items:center; gap:16px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim);
+  }
+  .live-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--teal);
+    box-shadow:0 0 0 0 rgba(79,179,160,0.6);
+    animation:pulse 2.2s infinite;
+    display:inline-block; margin-right:6px;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(79,179,160,0.5);}
+    70%{box-shadow:0 0 0 6px rgba(79,179,160,0);}
+    100%{box-shadow:0 0 0 0 rgba(79,179,160,0);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .live-dot{animation:none;}
+  }
+
+  /* ---------- Rail (tool switcher) ---------- */
+  .rail{
+    grid-area:rail;
+    border-right:1px solid var(--line);
+    padding:16px 10px;
+    display:flex; flex-direction:column; gap:4px;
+    overflow-y:auto;
+  }
+  .rail-label{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em;
+    color:var(--text-dim); text-transform:uppercase; padding:6px 10px 10px;
+  }
+  .tool-btn{
+    display:flex; align-items:center; gap:10px;
+    background:transparent; border:1px solid transparent; border-radius:var(--radius);
+    color:var(--text-dim); padding:10px 10px; text-align:left; font-size:13.5px;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .tool-btn:hover{background:var(--surface-2); color:var(--text);}
+  .tool-btn.active{
+    background:var(--surface-2); color:var(--text);
+    border-color:var(--line);
+  }
+  .tool-btn .dot{
+    width:7px; height:7px; border-radius:50%; background:var(--line); flex:none;
+    transition:background .15s, box-shadow .15s;
+  }
+  .tool-btn.active .dot{background:var(--brass); box-shadow:0 0 0 3px rgba(201,138,59,0.18);}
+  .tool-btn .lbl{display:flex; flex-direction:column; line-height:1.25;}
+  .tool-btn .lbl b{font-weight:600; font-size:13px;}
+  .tool-btn .lbl span{font-size:10.5px; color:var(--text-dim); font-family:'JetBrains Mono',monospace;}
+
+  /* ---------- Main workspace ---------- */
+  .workspace{
+    grid-area:main;
+    display:flex; flex-direction:column;
+    padding:20px 22px;
+    overflow-y:auto;
+    gap:16px;
+  }
+  .tool-head{display:flex; flex-direction:column; gap:2px;}
+  .tool-head h1{
+    font-family:'Space Grotesk',sans-serif; font-size:20px; margin:0; font-weight:600;
+  }
+  .tool-head p{margin:0; color:var(--text-dim); font-size:13px;}
+
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px;
+  }
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+  .field label{font-size:12px; color:var(--text-dim); font-family:'JetBrains Mono',monospace;}
+  .field input[type=text], .field textarea, .field select{
+    background:var(--ink); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); padding:10px 11px; font-size:13.5px; resize:vertical;
+  }
+  .field input[type=text]:focus, .field textarea:focus, .field select:focus{
+    outline:2px solid var(--brass); outline-offset:1px; border-color:var(--brass);
+  }
+  .field textarea{min-height:88px; line-height:1.5;}
+  .row-2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media (max-width:640px){.row-2{grid-template-columns:1fr;}}
+
+  .run-btn{
+    background:var(--brass); color:var(--ink); border:none; border-radius:8px;
+    font-weight:600; font-size:13.5px; padding:11px 18px;
+    display:inline-flex; align-items:center; gap:8px;
+    transition:background .15s, transform .1s;
+  }
+  .run-btn:hover{background:#dd9a49;}
+  .run-btn:active{transform:scale(0.98);}
+  .run-btn:disabled{background:var(--paper-dim); color:var(--ink); opacity:.6; cursor:progress;}
+  .run-btn .spin{
+    width:13px; height:13px; border-radius:50%;
+    border:2px solid rgba(18,24,31,0.3); border-top-color:var(--ink);
+    animation:spin .7s linear infinite; display:none;
+  }
+  .run-btn.loading .spin{display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .output-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .tabs{display:flex; gap:4px;}
+  .tab-btn{
+    background:transparent; border:1px solid var(--line); color:var(--text-dim);
+    font-size:11.5px; font-family:'JetBrains Mono',monospace; padding:5px 10px; border-radius:6px;
+  }
+  .tab-btn.active{color:var(--ink); background:var(--paper); border-color:var(--paper);}
+
+  .output-body{
+    background:var(--paper); color:#1b1a17; border-radius:8px; padding:16px 18px;
+    min-height:140px; font-size:13.8px; line-height:1.65; white-space:pre-wrap;
+  }
+  .output-body.empty{color:#8a8676; font-style:italic; white-space:normal;}
+  .output-body h2, .output-body h3{font-family:'Space Grotesk',sans-serif; margin:14px 0 6px; font-size:15px;}
+  .output-body h2:first-child{margin-top:0;}
+  .output-body strong{color:#12181F;}
+  .output-body code{background:#dedad0; padding:1px 5px; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:12.5px;}
+
+  .prompt-view{
+    background:var(--ink); border:1px dashed var(--line); border-radius:8px;
+    padding:14px 16px; font-family:'JetBrains Mono',monospace; font-size:12px;
+    color:var(--teal); white-space:pre-wrap; min-height:140px; line-height:1.6;
+  }
+
+  .error-box{
+    background:rgba(217,99,79,0.12); border:1px solid var(--danger); color:#ffb3a3;
+    padding:10px 12px; border-radius:8px; font-size:12.5px; margin-top:10px;
+  }
+
+  /* ---------- Chat specific ---------- */
+  .chat-thread{display:flex; flex-direction:column; gap:12px; flex:1; overflow-y:auto; padding:4px 2px;}
+  .msg{max-width:80%; padding:10px 13px; border-radius:10px; font-size:13.6px; line-height:1.55; white-space:pre-wrap;}
+  .msg.user{align-self:flex-end; background:var(--brass); color:var(--ink); border-bottom-right-radius:2px;}
+  .msg.assistant{align-self:flex-start; background:var(--paper); color:#1b1a17; border-bottom-left-radius:2px;}
+  .chat-input-row{display:flex; gap:8px; margin-top:10px;}
+  .chat-input-row input{flex:1;}
+
+  /* ---------- Activity log ---------- */
+  .log-panel{
+    grid-area:log;
+    border-left:1px solid var(--line);
+    padding:16px 14px;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+  .log-panel h2{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-dim); margin:0 0 12px;
+  }
+  .log-list{list-style:none; margin:0; padding:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .log-item{
+    border-left:2px solid var(--brass); padding:2px 0 2px 10px;
+    font-size:12px; color:var(--text-dim);
+  }
+  .log-item .t{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--teal); display:block;
+  }
+  .log-item .d{color:var(--text); margin-top:2px; display:block;}
+  .log-empty{font-size:12px; color:var(--text-dim); font-style:italic;}
+
+  /* ---------- Mobile ---------- */
+  @media (max-width:900px){
+    .app{
+      grid-template-columns:1fr;
+      grid-template-rows:60px auto 1fr;
+      grid-template-areas:
+        "top"
+        "rail"
+        "main";
+    }
+    .log-panel{display:none;}
+    .rail{
+      flex-direction:row; border-right:none; border-bottom:1px solid var(--line);
+      overflow-x:auto; padding:10px;
+    }
+    .rail-label{display:none;}
+    .tool-btn{flex:none;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">R</div>
+      <div class="name">RELAY</div>
+      <div class="tag">workplace assistant</div>
+    </div>
+    <div class="status">
+      <span><span class="live-dot"></span>connected</span>
+      <span id="clock" style="font-family:'JetBrains Mono',monospace;"></span>
+    </div>
+  </header>
+
+  <nav class="rail" id="rail">
+    <div class="rail-label">Modules</div>
+    <!-- tool buttons injected by JS -->
+  </nav>
+
+  <main class="workspace" id="workspace">
+    <!-- tool UI injected by JS -->
+  </main>
+
+  <aside class="log-panel">
+    <h2>Activity Log</h2>
+    <ul class="log-list" id="logList"></ul>
+  </aside>
+
+</div>
+
+<script>
+/* =========================================================================
+   RELAY — Workplace AI Assistant
+   Single-file demo wired to the Anthropic Messages API.
+   Every module below defines its own engineered system prompt: a role,
+   explicit output schema, and anti-hallucination guardrails. Use the
+   "System Prompt" tab in each module to inspect exactly what is sent.
+   ========================================================================= */
+
+const MODEL = "claude-sonnet-4-6";
+
+// ---------- Tool registry ----------
+const TOOLS = {
+
+  compose: {
+    label: "Compose",
+    sub: "email generation",
+    title: "Compose an email",
+    desc: "Draft a ready-to-send email from a few bullet points.",
+    fields: [
+      {id:"recipient", label:"Recipient / relationship", type:"text", placeholder:"e.g. client we haven't heard from in 3 weeks"},
+      {id:"tone", label:"Tone", type:"select", options:["Professional","Friendly","Firm","Apologetic","Persuasive"]},
+      {id:"length", label:"Length", type:"select", options:["Short","Standard","Detailed"]},
+      {id:"context", label:"Context / purpose", type:"textarea", placeholder:"What's this email for?"},
+      {id:"keyPoints", label:"Key points to include", type:"textarea", placeholder:"One per line is fine"}
+    ],
+    systemPrompt(v){
+      return `You are the Compose module inside Relay, a workplace AI assistant. Your sole job is drafting a single email based on the details supplied below.
+
+Follow these rules exactly:
+1. Output format: a line starting with "Subject: " followed by the subject line, then a blank line, then the email body only. No preamble, no notes, no explanation of what you wrote.
+2. Tone: match "${v.tone}" precisely throughout.
+3. Length: "${v.length}" — Short = 3-5 sentences, Standard = 2-3 short paragraphs, Detailed = fully fleshed out with all key points expanded.
+4. Ground the email only in the context and key points given. Do not invent names, numbers, dates, or commitments that were not provided — if a detail is missing, write around it generically rather than fabricating one.
+5. Close with "Best," followed by [Your Name] as a placeholder, unless a name is given in the key points.
+6. Avoid generic filler ("I hope this email finds you well") unless the tone is Friendly.
+
+Recipient / relationship: ${v.recipient || "not specified"}
+Context / purpose: ${v.context || "not specified"}
+Key points to include:
+${v.keyPoints || "not specified"}`;
+    },
+    userMessage(v){ return `Draft the email described in the system prompt.`; }
+  },
+
+  recap: {
+    label: "Recap",
+    sub: "meeting summarization",
+    title: "Summarize a meeting",
+    desc: "Paste raw notes or a transcript, get a structured recap.",
+    fields: [
+      {id:"title", label:"Meeting title (optional)", type:"text", placeholder:"e.g. Q3 roadmap sync"},
+      {id:"focus", label:"Focus", type:"select", options:["Full recap","Action items only","Decisions only"]},
+      {id:"notes", label:"Raw notes / transcript", type:"textarea", tall:true, placeholder:"Paste your notes or transcript here..."}
+    ],
+    systemPrompt(v){
+      return `You are the Recap module inside Relay. Convert raw meeting notes or transcripts into a clean structured summary.
+
+Output using exactly these Markdown headers, in this order, and only include a section relevant to the requested focus mode:
+## TL;DR
+2-3 sentences capturing the purpose and outcome of the meeting.
+## Decisions
+Bullet list of concrete decisions made. If none were made, write "No formal decisions recorded."
+## Action Items
+Bullet list formatted as "- Owner: Task (Due: date or 'not specified')". Only name an owner or date if it is stated or clearly implied in the notes — never invent one.
+## Open Questions
+Bullet list of unresolved questions or follow-ups mentioned.
+
+Ground every line in the supplied notes only. Do not add analysis, opinions, or information absent from the source text.
+
+Focus mode requested: ${v.focus}
+Meeting title: ${v.title || "untitled"}
+
+Raw notes:
+${v.notes || "(none provided)"}`;
+    },
+    userMessage(v){ return `Summarize the meeting notes described in the system prompt, respecting the requested focus mode.`; }
+  },
+
+  plan: {
+    label: "Plan",
+    sub: "task planning",
+    title: "Plan a task or project",
+    desc: "Turn a goal into an ordered, time-boxed plan.",
+    fields: [
+      {id:"goal", label:"Goal / project", type:"textarea", placeholder:"What needs to get done?"},
+      {id:"constraints", label:"Deadline / constraints", type:"text", placeholder:"e.g. due Friday, waiting on legal review"},
+      {id:"timePerDay", label:"Available time per day", type:"text", placeholder:"e.g. 2 hours"},
+      {id:"priorityStyle", label:"Prioritization style", type:"select", options:["Balanced","Deadline-driven","Quick wins first"]}
+    ],
+    systemPrompt(v){
+      return `You are the Plan module inside Relay. Turn a stated goal into an actionable execution plan.
+
+Output format:
+## Plan Summary
+One sentence describing the overall approach.
+## Steps
+Numbered list. Each step: a short bold action title, one line of detail, then "Est. time: X". Order steps so dependencies come before what depends on them.
+## Watch-outs
+Up to 3 bullets of realistic risks or blockers specific to this particular goal — not generic project-management advice.
+
+Sizing rule: the total estimated time should roughly respect the stated available time per day. If the goal cannot realistically fit before the deadline at that pace, say so plainly in Plan Summary rather than compressing the estimates dishonestly.
+
+Prioritization style requested: ${v.priorityStyle}
+Goal: ${v.goal || "not specified"}
+Constraints / deadline: ${v.constraints || "none given"}
+Available time per day: ${v.timePerDay || "not specified"}`;
+    },
+    userMessage(v){ return `Build the plan described in the system prompt.`; }
+  },
+
+  research: {
+    label: "Research",
+    sub: "research assistance",
+    title: "Research a question",
+    desc: "Live web search, summarized with sources.",
+    fields: [
+      {id:"question", label:"Research question", type:"textarea", placeholder:"What do you need to know?"},
+      {id:"depth", label:"Depth", type:"select", options:["Quick overview","Balanced","Deep dive"]},
+      {id:"focusNotes", label:"Focus / angle (optional)", type:"text", placeholder:"e.g. focus on EU market only"}
+    ],
+    useSearch:true,
+    systemPrompt(v){
+      return `You are the Research module inside Relay. Use web search to answer the question with current, accurate information.
+
+Rules:
+1. Search before answering — do not rely on prior knowledge alone for anything time-sensitive or factual.
+2. Structure the answer as:
+## Summary
+2-4 sentences directly answering the question.
+## Key Findings
+Bulleted findings, each grounded in a searched source.
+## Sources
+Numbered list of sources referenced.
+3. Explicitly note if sources disagree.
+4. Depth requested: "${v.depth}" — Quick overview: 2-3 findings; Balanced: 4-6 findings; Deep dive: 6-10 findings with more nuance.
+5. Never fabricate a source, statistic, or quote.
+
+Research question: ${v.question || "not specified"}
+Additional focus: ${v.focusNotes || "none"}`;
+    },
+    userMessage(v){ return v.question || "Please research the topic described in the system prompt."; }
+  },
+
+  ask: {
+    label: "Ask",
+    sub: "chatbot",
+    title: "Ask Relay",
+    desc: "General workplace Q&A, in a running thread.",
+    isChat:true,
+    systemPrompt(){
+      return `You are Relay, a concise and capable workplace assistant embedded in a company dashboard. Answer helpfully and directly. Default to short, practical answers (a few sentences or a short list) unless the user asks for depth. Ask a clarifying question only if the request is genuinely ambiguous. Keep a warm, professional register — you're a helpful colleague, not a formal document.`;
+    }
+  }
+};
+
+let currentTool = "compose";
+let activeTab = "result"; // 'result' | 'prompt'
+let chatHistory = []; // {role, content}
+const logEntries = [];
+
+// ---------- Rail ----------
+function renderRail(){
+  const rail = document.getElementById('rail');
+  rail.querySelectorAll('.tool-btn').forEach(b=>b.remove());
+  Object.keys(TOOLS).forEach(key=>{
+    const t = TOOLS[key];
+    const btn = document.createElement('button');
+    btn.className = 'tool-btn' + (key===currentTool ? ' active' : '');
+    btn.innerHTML = `<span class="dot"></span><span class="lbl"><b>${t.label}</b><span>${t.sub}</span></span>`;
+    btn.onclick = ()=>{ currentTool = key; activeTab='result'; renderRail(); renderWorkspace(); };
+    rail.appendChild(btn);
+  });
+}
+
+// ---------- Workspace ----------
+function fieldHTML(f){
+  const idAttr = `data-field="${f.id}"`;
+  if(f.type==='select'){
+    return `<div class="field"><label>${f.label}</label>
+      <select ${idAttr}>${f.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></div>`;
+  }
+  if(f.type==='textarea'){
+    return `<div class="field"><label>${f.label}</label>
+      <textarea ${idAttr} placeholder="${f.placeholder||''}" style="${f.tall?'min-height:160px;':''}"></textarea></div>`;
+  }
+  return `<div class="field"><label>${f.label}</label>
+    <input type="text" ${idAttr} placeholder="${f.placeholder||''}"/></div>`;
+}
+
+function renderWorkspace(){
+  const tool = TOOLS[currentTool];
+  const ws = document.getElementById('workspace');
+
+  if(tool.isChat){
+    ws.innerHTML = `
+      <div class="tool-head"><h1>${tool.title}</h1><p>${tool.desc}</p></div>
+      <div class="panel" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+        <div class="chat-thread" id="chatThread"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Ask Relay anything work-related..."/>
+          <button class="run-btn" id="chatSend">Send</button>
+        </div>
+        <div id="chatError"></div>
+      </div>`;
+    renderChatThread();
+    document.getElementById('chatSend').onclick = sendChat;
+    document.getElementById('chatInput').addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ sendChat(); }
+    });
+    return;
+  }
+
+  const firstTwo = tool.fields.slice(0,2);
+  const rest = tool.fields.slice(2);
+  ws.innerHTML = `
+    <div class="tool-head"><h1>${tool.title}</h1><p>${tool.desc}</p></div>
+    <div class="panel">
+      ${firstTwo.length>1 ? `<div class="row-2">${firstTwo.map(fieldHTML).join('')}</div>` : firstTwo.map(fieldHTML).join('')}
+      ${rest.map(fieldHTML).join('')}
+      <button class="run-btn" id="runBtn"><span class="spin"></span><span id="runLabel">Run</span></button>
+      <div id="errorSlot"></div>
+    </div>
+    <div class="panel" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+      <div class="output-head">
+        <div class="tabs">
+          <button class="tab-btn ${activeTab==='result'?'active':''}" data-tab="result">Result</button>
+          <button class="tab-btn ${activeTab==='prompt'?'active':''}" data-tab="prompt">System Prompt</button>
+        </div>
+      </div>
+      <div id="outputArea" style="flex:1; overflow-y:auto;"></div>
+    </div>
+  `;
+
+  document.getElementById('runBtn').onclick = runTool;
+  ws.querySelectorAll('.tab-btn').forEach(b=>{
+    b.onclick = ()=>{ activeTab = b.dataset.tab; renderOutputArea(); ws.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); };
+  });
+  renderOutputArea();
+}
+
+function collectFieldValues(tool){
+  const v = {};
+  tool.fields.forEach(f=>{
+    const el = document.querySelector(`[data-field="${f.id}"]`);
+    v[f.id] = el ? el.value : '';
+  });
+  return v;
+}
+
+let lastResult = null; // {html, promptText}
+
+function renderOutputArea(){
+  const area = document.getElementById('outputArea');
+  if(!area) return;
+  if(activeTab==='prompt'){
+    const tool = TOOLS[currentTool];
+    const v = collectFieldValues(tool);
+    area.innerHTML = `<div class="prompt-view">${escapeHTML(tool.systemPrompt(v))}</div>`;
+  } else {
+    if(lastResult && lastResult.tool===currentTool){
+      area.innerHTML = `<div class="output-body">${lastResult.html}</div>`;
+    } else {
+      area.innerHTML = `<div class="output-body empty">Run the module to see output here.</div>`;
+    }
+  }
+}
+
+function escapeHTML(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// very small markdown-ish renderer for ## headers, **bold**, - bullets
+function lightMarkdown(text){
+  const esc = escapeHTML(text);
+  const lines = esc.split('\n');
+  let html = '';
+  let inList = false;
+  for(const line of lines){
+    const h2 = line.match(/^##\s+(.*)/);
+    if(h2){
+      if(inList){ html += '</ul>'; inList=false; }
+      html += `<h2>${h2[1]}</h2>`;
+      continue;
+    }
+    const bullet = line.match(/^-\s+(.*)/);
+    if(bullet){
+      if(!inList){ html += '<ul style="margin:4px 0 10px 18px; padding:0;">'; inList=true; }
+      html += `<li>${inlineFmt(bullet[1])}</li>`;
+      continue;
+    }
+    if(inList){ html += '</ul>'; inList=false; }
+    if(line.trim()==='') { html += '<br/>'; continue; }
+    html += `<p style="margin:4px 0;">${inlineFmt(line)}</p>`;
+  }
+  if(inList) html += '</ul>';
+  return html;
+}
+function inlineFmt(s){
+  return s.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+}
+
+// ---------- API call ----------
+async function callClaude(system, messages, useSearch){
+  const body = {
+    model: MODEL,
+    max_tokens: 1000,
+    system: system,
+    messages: messages
+  };
+  if(useSearch){
+    body.tools = [{type:"web_search_20250305", name:"web_search"}];
+  }
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  if(!resp.ok){
+    throw new Error(`API error (${resp.status})`);
+  }
+  const data = await resp.json();
+  const text = (data.content||[])
+    .map(block => block.type==='text' ? block.text : '')
+    .filter(Boolean)
+    .join('\n');
+  return text;
+}
+
+function addLog(moduleLabel, detail){
+  const now = new Date();
+  const t = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  logEntries.unshift({t, moduleLabel, detail});
+  renderLog();
+}
+function renderLog(){
+  const list = document.getElementById('logList');
+  if(logEntries.length===0){
+    list.innerHTML = `<li class="log-empty">No activity yet — run a module to see it logged here.</li>`;
+    return;
+  }
+  list.innerHTML = logEntries.slice(0,30).map(e=>`
+    <li class="log-item">
+      <span class="t">${e.t} · ${e.moduleLabel}</span>
+      <span class="d">${e.detail}</span>
+    </li>`).join('');
+}
+
+async function runTool(){
+  const tool = TOOLS[currentTool];
+  const v = collectFieldValues(tool);
+  const runBtn = document.getElementById('runBtn');
+  const errorSlot = document.getElementById('errorSlot');
+  errorSlot.innerHTML = '';
+  runBtn.classList.add('loading');
+  runBtn.disabled = true;
+  document.getElementById('runLabel').textContent = 'Running...';
+
+  try{
+    const system = tool.systemPrompt(v);
+    const userMsg = tool.userMessage(v);
+    const text = await callClaude(system, [{role:'user', content:userMsg}], tool.useSearch);
+    lastResult = { tool: currentTool, html: lightMarkdown(text) };
+    activeTab = 'result';
+    renderWorkspace();
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    addLog(tool.label, `generated output (~${wordCount} words)`);
+  }catch(err){
+    errorSlot.innerHTML = `<div class="error-box">Something went wrong: ${escapeHTML(err.message)}. Check your connection and try again.</div>`;
+    addLog(tool.label, `run failed`);
+  }finally{
+    runBtn.classList.remove('loading');
+    runBtn.disabled = false;
+    if(document.getElementById('runLabel')) document.getElementById('runLabel').textContent = 'Run';
+  }
+}
+
+// ---------- Chat ----------
+function renderChatThread(){
+  const thread = document.getElementById('chatThread');
+  if(!thread) return;
+  if(chatHistory.length===0){
+    thread.innerHTML = `<div class="output-body empty" style="border-radius:8px;">Ask about anything work-related — drafting, prioritizing, quick research, or just thinking something through.</div>`;
+    return;
+  }
+  thread.innerHTML = chatHistory.map(m=>`<div class="msg ${m.role}">${escapeHTML(m.content)}</div>`).join('');
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function sendChat(){
+  const input = document.getElementById('chatInput');
+  const errBox = document.getElementById('chatError');
+  const text = input.value.trim();
+  if(!text) return;
+  chatHistory.push({role:'user', content:text});
+  input.value = '';
+  renderChatThread();
+  errBox.innerHTML = '';
+
+  const sendBtn = document.getElementById('chatSend');
+  sendBtn.disabled = true;
+  sendBtn.textContent = '...';
+
+  try{
+    const system = TOOLS.ask.systemPrompt();
+    const apiMessages = chatHistory.map(m=>({role:m.role, content:m.content}));
+    const reply = await callClaude(system, apiMessages, false);
+    chatHistory.push({role:'assistant', content:reply});
+    renderChatThread();
+    addLog('Ask', `replied (${reply.split(/\s+/).filter(Boolean).length} words)`);
+  }catch(err){
+    errBox.innerHTML = `<div class="error-box">Something went wrong: ${escapeHTML(err.message)}.</div>`;
+    addLog('Ask', 'reply failed');
+  }finally{
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send';
+  }
+}
+
+// ---------- Clock ----------
+function tickClock(){
+  const el = document.getElementById('clock');
+  if(el) el.textContent = new Date().toLocaleTimeString();
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ---------- Init ----------
+renderRail();
+renderWorkspace();
+renderLog();
+</script>
+</body>
+</html>
